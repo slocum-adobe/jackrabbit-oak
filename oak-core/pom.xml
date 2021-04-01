@@ -330,6 +330,23 @@
       <groupId>org.jetbrains</groupId>
       <artifactId>annotations</artifactId>
     </dependency>
+    
+    
+    <!-- Adobe Protect Customization Dependencies-->
+    <dependency>      
+    	<groupId>adobe.protect</groupId>
+        <artifactId>protect.core</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </dependency>
+    <!-- https://mvnrepository.com/artifact/org.apache.sling/org.apache.sling.api -->
+	<dependency>
+	    <groupId>org.apache.sling</groupId>
+	    <artifactId>org.apache.sling.api</artifactId>
+	    <version>2.23.0</version>
+	    <scope>provided</scope>
+	</dependency>
+	<!-- End Adobe Protect Customization Dependencies-->
+
 
     <!-- Test Dependencies -->
     <dependency>
