@@ -7,24 +7,15 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.jcr.security.AccessControlManager;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.jackrabbit.oak.api.Root;
 import org.apache.jackrabbit.oak.namepath.NamePathMapper;
-import org.apache.jackrabbit.oak.security.authorization.permission.VersionablePathHook;
+import org.apache.jackrabbit.oak.plugins.memory.MemoryNodeStore;
 import org.apache.jackrabbit.oak.security.authorization.protect.CugAccessControlManager;
 import org.apache.jackrabbit.oak.security.authorization.protect.ProtectPermissionProvider;
-import org.apache.jackrabbit.oak.security.authorization.accesscontrol.AccessControlImporter;
-import org.apache.jackrabbit.oak.security.authorization.accesscontrol.AccessControlValidatorProvider;
 import org.apache.jackrabbit.oak.security.authorization.permission.AllPermissionProviderImpl;
-import org.apache.jackrabbit.oak.security.authorization.permission.MountPermissionProvider;
-import org.apache.jackrabbit.oak.security.authorization.permission.PermissionHook;
-import org.apache.jackrabbit.oak.security.authorization.permission.PermissionProviderImpl;
-import org.apache.jackrabbit.oak.security.authorization.permission.PermissionStoreValidatorProvider;
 import org.apache.jackrabbit.oak.security.authorization.permission.PermissionUtil;
-import org.apache.jackrabbit.oak.security.authorization.permission.PermissionValidatorProvider;
-import org.apache.jackrabbit.oak.security.authorization.restriction.RestrictionProviderImpl;
 import org.apache.jackrabbit.oak.spi.commit.MoveTracker;
-import org.apache.jackrabbit.oak.spi.lifecycle.WorkspaceInitializer;
+import org.apache.jackrabbit.oak.spi.lifecycle.RepositoryInitializer;
 import org.apache.jackrabbit.oak.spi.mount.MountInfoProvider;
 import org.apache.jackrabbit.oak.spi.mount.Mounts;
 import org.apache.jackrabbit.oak.spi.namespace.NamespaceConstants;
@@ -35,10 +26,13 @@ import org.apache.jackrabbit.oak.spi.security.Context;
 import org.apache.jackrabbit.oak.spi.security.SecurityConfiguration;
 import org.apache.jackrabbit.oak.spi.security.SecurityProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.AuthorizationConfiguration;
-import org.apache.jackrabbit.oak.spi.security.authorization.accesscontrol.AccessControlConstants;
 import org.apache.jackrabbit.oak.spi.security.authorization.permission.PermissionProvider;
 import org.apache.jackrabbit.oak.spi.security.authorization.restriction.RestrictionProvider;
 import org.apache.jackrabbit.oak.spi.security.privilege.PrivilegeConstants;
+import org.apache.jackrabbit.oak.spi.state.ApplyDiff;
+import org.apache.jackrabbit.oak.spi.state.NodeBuilder;
+import org.apache.jackrabbit.oak.spi.state.NodeState;
+import org.apache.jackrabbit.oak.spi.state.NodeStore;
 import org.apache.jackrabbit.oak.spi.xml.ImportBehavior;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Activate;
@@ -108,7 +102,7 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
                         @Option(label = ImportBehavior.NAME_BESTEFFORT, value = ImportBehavior.NAME_BESTEFFORT),
                         @Option(label = ImportBehavior.NAME_IGNORE, value = ImportBehavior.NAME_IGNORE)
                 })
-        String importBehavior() default ImportBehavior.NAME_ABORT;
+        String importBehavior() default ImportBehavior.NAME_BESTEFFORT;
 
         @AttributeDefinition(
                 name = "Readable Paths",
@@ -121,8 +115,41 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
         @AttributeDefinition(
                 name = "Administrative Principals",
                 description = "Allows to specify principals that should be granted full permissions on the complete repository content.",
-                cardinality = 10)
-        String[] administrativePrincipals();
+                cardinality = 300)
+        String[] administrativePrincipals() default {
+        	"admin","account-manager","acs-commons-automatic-package-replicator-service","acs-commons-bulk-workflow-service","acs-commons-component-error-handler-service",
+        	"acs-commons-dispatcher-flush-service","acs-commons-email-service","acs-commons-ensure-oak-index-service","acs-commons-ensure-service-user-service",
+        	"acs-commons-error-page-handler-service","acs-commons-file-fetch-service","acs-commons-form-helper-service","acs-commons-httpcache-jcr-storage-service",
+        	"acs-commons-manage-controlled-processes-service","acs-commons-manage-redirects-service","acs-commons-on-deploy-scripts-service",
+        	"acs-commons-package-replication-status-event-service","acs-commons-remote-assets-service","acs-commons-review-task-asset-mover-service",
+        	"acs-commons-shared-component-props-service","acs-commons-system-notifications-service","acs-commons-twitter-updater-service","acs-commons-workflow-remover-service",
+        	"acs-commons-workflowpackagemanager-service","activity-service","activitypurgesrv","analytics-content-updater-service","analyticsservice","assetdownloadservice",
+        	"assetlinkshareservice","assetusagetrackeruser","async-jobs-service","audit-service","authentication-service","author-publish-screens-service",
+        	"brandportal-imsconfig-service","bulk-offline-update-screens-service","campaign-cloudservice","campaign-property-modification-service","campaign-reader",
+        	"canvaspage-activate-service","canvaspage-delete-service","cdn-service","clientlibs-service","cloudconfig-scripttags","commerce-backend-service",
+        	"commerce-orders-service","communities-acl-manager","communities-analytics-admin","communities-enablement-property-writer","communities-srp-config-reader",
+        	"communities-tag-admin","communities-ugc-writer","communities-user-admin","communities-utility-reader","compat-codeupgrade-service","configuration-reader-service",
+        	"content-acreader-service","content-reader-service","content-writer-service","contentsync-service","contexthub-cache-service","contexthub-conf-reader",
+        	"cryptoservice","cug-service","dam-activitywriter-service","dam-formitemseditor-service","dam-metadata-export-service","dam-reader-service",
+        	"dam-replication-service","dam-reports-manager-service","dam-teammgr-service","dam-update-service","dam-writer-service","design-cache-service",
+        	"dtm-reactor-imsconfig-service","dtm-reactor-service","dtmservice","dynamic-media-replication","dynamic-media-replication-filter","dynamic-media-s7sync",
+        	"dynamicmedia-config-service","experience-fragments-service","fd-cloudservice","fd-service","fontconfig-service","foundation-forms-service",
+        	"foundation-forms-store-service","granite-async-jobs-service","group-administration-service","group-reader-service","idsjobprocessor","index-admin",
+        	"language-manager-service","launch-event-service","launch-promote-service","linkstorage-service","monitoring-screens-service","monitoringScripts",
+        	"msm-service","namespace-mgmt-service","nlp-reader","notification-service","nui-process-service","oauthservice","offloading-agentmanager","offloading-jobcloner",
+        	"offloading-service","omnisearch-service","on-off-time-service","packagelist-service","page-name-validator-service","pageexporterservice",
+        	"polling-importer-service","primary-resource-search-service","projects-purge-service","projects-service","recs-deleted-products-listener-service",
+        	"reference-adjustment-service","reference-processing-service","remote-ref-cache-user","replication-service","repository-change-listener-service",
+        	"repository-reader-service","resourcecollectionservice","root-reader-service","s7dam-config-service","scene7-config-service","scene7-config-writer-service",
+        	"scheduled-exporter-service","screens-group-admin-service","searchpromote-service","security-userproperties-service","service-admin",
+        	"sling-context-aware-config-web-console","sling-discovery","sling-distribution","sling-event","sling-installer-service","sling-jcr-install","sling-scripting",
+        	"sling-tenant","sling-xss","snapshotservice","social-enablement-replication-user","social-enablement-tmp-manager","spellchecker-service","ssl-service",
+        	"statistics-service","stock-imsconfig-service","tag-garbage-collection-service","tag-validation-service","target-imsconfig-service","targetservice",
+        	"taskmanagement-service","translation-config-service","translation-job-service","translation-preview-service","truststore-reader-service","undo-service",
+        	"user-administration-service","user-reader-service","version-manager-service","version-purge-service","versions-preview-service-user","wcm-workflow-service",
+        	"webdavbkpservice","webservice-support-replication","webservice-support-servicelibfinder","workflow-process-service","workflow-service","wurfl-loader-service",
+        	"youtube-authenticator-user"
+        };
 
         @AttributeDefinition(
                 name = "Ranking",
@@ -135,7 +162,7 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
 	      
 	     @AttributeDefinition(name = "protectOverrideRuleService",
 	              description = "Attribute Based Access Control Protection Override Rules Registration")
-	     String[] protect_override_rules_service();
+	     String[] protect_override_rules_service() default {"adobe.protect.core.secure.rules.IsTheAuthor"}; 
     }
 
     private static final Logger log = LoggerFactory.getLogger("adobe.protect");
@@ -237,11 +264,11 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
     /**
      * All configured protect.rules.service and protect.override.rules.service MUST be a satisfied bound 
      * service ID of this components associated Referenced service
+     * 
+     * Reference to @Configuration class needed for correct DS xml generation
     */
-    @SuppressWarnings("UnusedDeclaration")
     @Activate
-    // reference to @Configuration class needed for correct DS xml generation
-    private void activate(Configuration configuration, Map properties) {
+        private void activate(Configuration configuration, Map properties) {
         setParameters(ConfigurationParameters.of(properties));
         log.debug("Set configured Protect Rule and Protect Override Rule properties");
     	protectRuleServiceConfiguration = configuration.protect_rules_service();
@@ -258,36 +285,40 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
     @NotNull
     @Override
     public Context getContext() {
-        return AuthorizationContext.getInstance();
+    	return Context.DEFAULT; 
     }
-
+    
     @NotNull
     @Override
-    public WorkspaceInitializer getWorkspaceInitializer() {
-        return new AuthorizationInitializer(mountInfoProvider);
+    public RepositoryInitializer getRepositoryInitializer() {
+    	return new RepositoryInitializer() {
+			@Override
+			public void initialize(@NotNull NodeBuilder builder) {
+                NodeState base = builder.getNodeState();
+                NodeStore store = new MemoryNodeStore(base);
+                NodeState target = store.getRoot();
+                target.compareAgainstBaseState(base, new ApplyDiff(builder));
+				
+			}
+        };
     }
 
     @NotNull
     @Override
     public List getCommitHooks(@NotNull String workspaceName) {
-        return ImmutableList.of(
-                new VersionablePathHook(workspaceName, this),
-                new PermissionHook(workspaceName, getRestrictionProvider(), mountInfoProvider, getRootProvider(), getTreeProvider()));
+    	return super.getCommitHooks(workspaceName);
     }
 
     @NotNull
     @Override
     public List getValidators(@NotNull String workspaceName, @NotNull Set principals, @NotNull MoveTracker moveTracker) {
-        return ImmutableList.of(
-                new PermissionStoreValidatorProvider(),
-                new PermissionValidatorProvider(workspaceName, principals, moveTracker, this),
-                new AccessControlValidatorProvider(this));
+    	return super.getValidators(workspaceName, principals, moveTracker);
     }
 
     @NotNull
     @Override
     public List getProtectedItemImporters() {
-        return ImmutableList.of(new AccessControlImporter());
+    	return super.getProtectedItemImporters();
     }
 
     //-----------------------------------------< AccessControlConfiguration >---
@@ -300,36 +331,22 @@ public class ProtectAuthorizationConfigurationImpl extends ConfigurationBase imp
     @NotNull
     @Override
     public RestrictionProvider getRestrictionProvider() {
-        RestrictionProvider restrictionProvider = getParameters().getConfigValue(AccessControlConstants.PARAM_RESTRICTION_PROVIDER, null, RestrictionProvider.class);
-        if (restrictionProvider == null) {
-            // default
-            restrictionProvider = new RestrictionProviderImpl();
-        }
-        return restrictionProvider;
+    	return RestrictionProvider.EMPTY;
     }
 
     @NotNull
     @Override
     public PermissionProvider getPermissionProvider(@NotNull Root root, @NotNull String workspaceName,
                                                     @NotNull Set principals) {
-        Context ctx = getSecurityProvider().getConfiguration(AuthorizationConfiguration.class).getContext();
-        if (PermissionUtil.isAdminOrSystem(principals, getParameters())) {
+    	if (PermissionUtil.isAdminOrSystem(principals, getParameters())) {
             return new AllPermissionProviderImpl(root, this);
-        }
-        
-        boolean test = true; 
-        if(test){
-            Set<String> supportedPaths = new HashSet<String>();
+        }else {
+            Set<String> supportedPaths = new HashSet<>();
             supportedPaths.add("/content");
             Map<String, ProtectRule> configuredProtectRules = getRegisteredProtectRules();
             Map<String, ProtectOverrideRule> configuredProtectOverrideRules = getRegisteredProtectOverrideRules();
-            return new ProtectPermissionProvider(root, workspaceName, principals, configuredProtectOverrideRules, configuredProtectRules, supportedPaths, ctx, this); 
-        }else if (mountInfoProvider.hasNonDefaultMounts()) {
-            return new MountPermissionProvider(root, workspaceName, principals, getRestrictionProvider(),
-                    getParameters(), ctx, this);
-        } else {
-            return new PermissionProviderImpl(root, workspaceName, principals, getRestrictionProvider(),
-                    getParameters(), ctx, this);
+            return new ProtectPermissionProvider(root, workspaceName, principals, configuredProtectOverrideRules, 
+            		configuredProtectRules, supportedPaths, this.getContext(), this); 
         }
     }
 
